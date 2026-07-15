@@ -6,6 +6,9 @@ const bodyParser = require("body-parser");
 const serverYt = require("./server/youtube.js");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const { initDb } = require("./db/init.js");
+const { clientIdMiddleware } = require("./db/clientId.js");
+const { cleanupExpiredTokens } = require("./db/navTokens.js");
 
 const app = express();
 let client;
@@ -16,9 +19,11 @@ app.use(express.static(path.join(__dirname, "public")));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
 app.use(cors());
 app.set("trust proxy", 1);
 app.use(cookieParser());
+app.use(clientIdMiddleware);
 
 // ★追加: デバッグ用ルート（認証ミドルウェアより前に置く）
 app.get('/debug/net', async (req, res) => {
@@ -109,6 +114,9 @@ async function initInnerTube() {
 
 process.on("unhandledRejection", console.error);
 initInnerTube();
+initDb();
+// 期限切れのPOST遷移用トークンを1時間おきに掃除する
+setInterval(cleanupExpiredTokens, 60 * 60 * 1000);
 
 module.exports = app;
 
