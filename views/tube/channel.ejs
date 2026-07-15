@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wkt</title>
+    <link rel="stylesheet" href="/css/page.css">
+    <script src="/js/tailwindcss.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script src="/js/tube.js"></script>
+    <style>
+        .tab-btn  { transition: all 0.2s; cursor: pointer; }
+        .sort-btn { transition: all 0.2s; cursor: pointer; }
+        .result-item { position: relative; }
+    </style>
+    <script src="/js/force-title.js"></script>
+    <script src="/js/navigate.js"></script>
+</head>
+<body class="bg-gray-900 text-white">
+
+<header class="bg-gray-800 p-4 flex justify-between items-center">
+    <form action="/wkt/s" method="post" class="w-1/2" id="searchForm">
+        <input type="text" name="q" id="searchbox" placeholder="検索" class="searchbox w-full p-2 rounded bg-gray-700 text-white">
+    </form>
+    <nav class="space-x-4">
+        <a href="/wkt" class="text-gray-300 hover:text-white">ホーム</a>
+        <a href="/wkt/trend" class="text-gray-300 hover:text-white">トレンド</a>
+        <a href="/wkt/cl/fav" class="text-gray-300 hover:text-white">お気に入り</a>
+        <a href="/wkt/cl/history" class="text-gray-300 hover:text-white">再生履歴</a>
+    </nav>
+</header>
+
+<div class="container mx-auto p-3">
+
+    <img src="<%- channel.header?.content?.banner?.image?.[0]?.url || "" %>" class="w-full h-auto mr-4">
+    <div class="bg-gray-800 p-8 rounded-lg shadow-lg mt-4">
+        <div class="flex items-center mb-6">
+            <img src="<%- channel.metadata.avatar?.[0]?.url || "" %>" class="w-20 h-20 rounded-full mr-4">
+            <div>
+                <h1 class="text-3xl font-bold"><%- channel.metadata.title %></h1>
+                <p class="text-gray-400 text-sm"><%- channel.header?.content?.metadata?.metadata_rows?.[0]?.metadata_parts?.[0]?.text || "" %>  -  <%- channel.header?.content?.metadata?.metadata_rows?.[1]?.metadata_parts?.[1]?.text || "" %></p>
+                <p class="text-gray-500 text-sm mt-2"><%- channel.header?.content?.metadata?.metadata_rows?.[1]?.metadata_parts?.[0]?.text || "" %></p>
+            </div>
+        </div>
+        <p class="text-gray-400 mt-4"><%- channel.metadata.description || "" %></p>
+    </div>
+
+    <%# ===== タブバー（trend.ejs同様にデータ属性でカラーを設定）===== %>
+    <div class="flex space-x-6 mb-6 border-b border-gray-700 text-lg overflow-x-auto whitespace-nowrap mt-6" id="channel-tabs">
+        <button class="tab-btn pb-2 text-white font-bold border-b-2 border-blue-500" data-tab="home" data-color="border-blue-500">ホーム</button>
+        <button class="tab-btn pb-2 text-gray-400 font-bold hover:text-white" data-tab="videos" data-color="border-green-500">動画</button>
+        <button class="tab-btn pb-2 text-gray-400 font-bold hover:text-white" data-tab="shorts" data-color="border-red-500">ショート</button>
+        <button class="tab-btn pb-2 text-gray-400 font-bold hover:text-white" data-tab="live" data-color="border-yellow-500">ライブ</button>
+        <button class="tab-btn pb-2 text-gray-400 font-bold hover:text-white" data-tab="releases" data-color="border-purple-500">リリース</button>
+        <button class="tab-btn pb-2 text-gray-400 font-bold hover:text-white" data-tab="playlists" data-color="border-pink-500">再生リスト</button>
+    </div>
+
+    <%# ===== ホームタブ（サーバーサイド描画）===== %>
+    <div id="tab-home" class="tab-content">
+        <% if (shelves && shelves.length > 0) { %>
+            <% shelves.forEach(shelf => { %>
+                <% const shelfItems = shelf.content?.items || shelf.content?.playlists || []; %>
+                <% if (shelfItems.length > 0) { %>
+                <div class="mb-8">
+                    <h2 class="text-xl font-bold mb-3"><%= shelf.title?.text || '' %></h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        <% shelfItems.forEach(item => { %>
+                            <%
+                                const itemType = item.type || '';
+                                // RichItem ラッパーを展開
+                                const actualItem = (itemType === 'RichItem' && item.content) ? item.content : item;
+                                const actualType = actualItem.type || '';
+                            %>
+
+                            <%# ── 動画カード ── %>
+                            <% if (actualType.endsWith('Video') || actualType === 'LockupView') { %>
+                                <%
+                                  const vidId = actualItem.content_id
+                                             || actualItem.id
+                                             || actualItem.video_id
+                                             || actualItem.endpoint?.payload?.videoId || '';
+                                  const vidTitle = actualItem.metadata?.title?.text
+                                               || actualItem.title?.text
+                                               || (typeof actualItem.title === 'string' ? actualItem.title : '') || '';
+                                  // 再生時間（LockupView: overlays のバッジ）
+                                  let vidDur = actualItem.duration?.text || (typeof actualItem.duration === 'string' ? actualItem.duration : '');
+                                  if (!vidDur) {
+                                    for (const ov of (actualItem.content_image?.overlays || [])) {
+                                      for (const b of (ov.badges || [])) {
+                                        if (b.text && /^\d/.test(b.text)) { vidDur = b.text; break; }
+                                      }
+                                      if (vidDur) break;
+                                    }
+                                  }
+                                  // 視聴回数・投稿日時
+                                  const rows = actualItem.metadata?.metadata?.metadata_rows || [];
+                                  const allTexts = [];
+                                  for (const row of rows) {
+                                    for (const p of (row?.metadata_parts || [])) {
+                                      if (p?.text?.text) allTexts.push(p.text.text);
+                                    }
+                                  }
+                                  let vidViews = actualItem.short_view_count?.text || actualItem.view_count?.text || '';
+                                  let vidPub   = actualItem.published?.text || (typeof actualItem.published === 'string' ? actualItem.published : '') || '';
+                                  for (const t of allTexts) {
+                                    if (!vidViews && /回|view/i.test(t)) vidViews = t;
+                                    else if (!vidPub && /ago|前|年|ヶ月|週|日|時間/i.test(t)) vidPub = t;
+                                    else if (!vidPub && !vidViews) vidPub = t;
+                                  }
+                                %>
+                                <% if (vidId) { %>
+                                <div class="result-item bg-gray-800 p-4 rounded-lg shadow hover:bg-gray-700 transition duration-200">
+                                    <a href="/wkt/watch/<%= vidId %>" class="block relative group wkt-watch-link" data-video-id="<%= vidId %>">
+                                        <img loading="lazy" src="/wkt/back/vi/<%= vidId %>/mqdefault.jpg" alt="<%= vidTitle %>" class="w-full h-auto rounded aspect-video object-cover">
+                                        <% if (vidDur) { %><span class="absolute bottom-1 right-1 bg-black bg-opacity-80 text-white text-xs px-1.5 py-0.5 rounded font-medium"><%= vidDur %></span><% } %>
+                                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition rounded"></div>
+                                    </a>
+                                    <div class="mt-3">
+                                        <a href="/wkt/watch/<%= vidId %>" class="wkt-watch-link" data-video-id="<%= vidId %>">
+                                            <p class="text-white font-bold text-sm leading-snug line-clamp-2 mb-1 hover:text-blue-400 transition"><%= vidTitle %></p>
+                                        </a>
+                                        <p class="text-gray-500 text-xs"><%= vidViews %><% if (vidPub) { %> • <%= vidPub %><% } %></p>
+                                    </div>
+                                </div>
+                                <% } %>
+
+                            <%# ── 再生リストカード ── %>
+                            <% } else if (actualType.includes('Playlist')) { %>
+                                <%
+                                  const plId    = actualItem.id || actualItem.content_id || '';
+                                  const plTitle = actualItem.title?.text || (typeof actualItem.title === 'string' ? actualItem.title : '') || '';
+                                  const plCount = actualItem.video_count?.text || '';
+                                  const plThumb = actualItem.thumbnails?.[0]?.url || '';
+                                %>
+                                <% if (plId) { %>
+                                <div class="result-item bg-gray-800 p-4 rounded-lg shadow hover:bg-gray-700 transition duration-200">
+                                    <a href="/wkt/p/<%= plId %>" class="block relative group">
+                                        <% if (plThumb) { %>
+                                            <img loading="lazy" src="<%= plThumb %>" alt="<%= plTitle %>" class="w-full h-auto rounded aspect-video object-cover">
+                                        <% } else { %>
+                                            <div class="w-full rounded aspect-video bg-gray-700"></div>
+                                        <% } %>
+                                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition rounded"></div>
+                                    </a>
+                                    <div class="mt-3">
+                                        <a href="/wkt/p/<%= plId %>">
+                                            <p class="text-white font-bold text-sm leading-snug line-clamp-2 mb-1 hover:text-blue-400 transition"><%= plTitle %></p>
+                                        </a>
+                                        <p class="text-gray-500 text-xs">再生リスト<% if (plCount) { %> • <%= plCount %>本<% } %></p>
+                                    </div>
+                                </div>
+                                <% } %>
+
+                            <%# ── チャンネルカード ── %>
+                            <% } else if (actualType.endsWith('Channel')) { %>
+                                <%
+                                  const chId    = actualItem.author?.id || actualItem.id || '';
+                                  const chThumb = actualItem.author?.thumbnails?.[0]?.url || '';
+                                  const chName  = actualItem.author?.name || '';
+                                  const chDesc  = actualItem.description_snippet?.text || '';
+                                  const chSubsc = actualItem.subscriber_count?.text || actualItem.subscribers?.text || '';
+                                  const chVids  = actualItem.videos?.text || actualItem.video_count?.text || '';
+                                %>
+                                <div class="result-item bg-gray-600 p-4 rounded">
+                                    <a href="/wkt/c/<%= chId %>">
+                                        <img src="<%= chThumb %>" alt="<%= chName %>" class="w-full h-auto rounded">
+                                    </a>
+                                    <div class="mt-2">
+                                        <p class="text-lg font-bold"><%= chName %></p>
+                                        <% if (chDesc) { %><p class="text-sm text-gray-400"><%= chDesc %></p><% } %>
+                                        <p class="text-xs text-gray-500"><%= chSubsc %><% if (chVids) { %> • <%= chVids %><% } %></p>
+                                    </div>
+                                </div>
+                            <% } %>
+                        <% }); %>
+                    </div>
+                </div>
+                <% } %>
+            <% }); %>
+        <% } else { %>
+            <p class="text-gray-400 py-8 text-center">コンテンツがありません。</p>
+        <% } %>
+
+        <%# ── ホームタブ用：UUボタンを追加 ── %>
+        <% const homePlaylistId = channelId.replace(/^UC/, 'UU'); %>
+        <div class="flex justify-center mt-10 mb-6">
+            <a class="px-6 py-3 bg-blue-600 text-white text-lg font-semibold rounded-full shadow-md hover:bg-blue-700 transition"
+               href="/wkt/p/<%= homePlaylistId %>">
+              もっと読み込む
+            </a>
+        </div>
+    </div>
+
+    <%# ===== 動画タブ ===== %>
+    <div id="tab-videos" class="tab-content hidden mt-4">
+        <div id="videos-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+
+        <% 
+           const videosPlaylistId = channelId.replace(/^UC/, 'UULF'); 
+           const videosPopularPlaylistId = channelId.replace(/^UC/, 'UULP'); 
+        %>
+        <div class="flex justify-center space-x-4 mt-10 mb-6">
+            <a class="px-6 py-3 bg-blue-600 text-white text-lg font-semibold rounded-full shadow-md hover:bg-blue-700 transition"
+               href="/wkt/p/<%= videosPlaylistId %>">
+              もっと読み込む
+            </a>
+            <a class="px-6 py-3 bg-blue-600 text-white text-lg font-semibold rounded-full shadow-md hover:bg-blue-700 transition"
+               href="/wkt/p/<%= videosPopularPlaylistId %>">
+              人気順に読み込む
+            </a>
+        </div>
+    </div>
+
+    <%# ===== ショートタブ ===== %>
+    <div id="tab-shorts" class="tab-content hidden mt-4">
+        <div id="shorts-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3"></div>
+
+        <% 
+           const shortsPlaylistId = channelId.replace(/^UC/, 'UUSH'); 
+           const shortsPopularPlaylistId = channelId.replace(/^UC/, 'UUPS'); 
+        %>
+        <div class="flex justify-center space-x-4 mt-10 mb-6">
+            <a class="px-6 py-3 bg-blue-600 text-white text-lg font-semibold rounded-full shadow-md hover:bg-blue-700 transition"
+               href="/wkt/p/<%= shortsPlaylistId %>">
+              もっと読み込む
+            </a>
+            <a class="px-6 py-3 bg-blue-600 text-white text-lg font-semibold rounded-full shadow-md hover:bg-blue-700 transition"
+               href="/wkt/p/<%= shortsPopularPlaylistId %>">
+              人気順に読み込む
+            </a>
+        </div>
+    </div>
+
+    <%# ===== ライブタブ ===== %>
+    <div id="tab-live" class="tab-content hidden mt-4">
+        <div id="live-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+
+        <% 
+           const livePlaylistId = channelId.replace(/^UC/, 'UULV'); 
+           const livePopularPlaylistId = channelId.replace(/^UC/, 'UUPV'); 
+        %>
+        <div class="flex justify-center space-x-4 mt-10 mb-6">
+            <a class="px-6 py-3 bg-blue-600 text-white text-lg font-semibold rounded-full shadow-md hover:bg-blue-700 transition"
+               href="/wkt/p/<%= livePlaylistId %>">
+              もっと読み込む
+            </a>
+            <a class="px-6 py-3 bg-blue-600 text-white text-lg font-semibold rounded-full shadow-md hover:bg-blue-700 transition"
+               href="/wkt/p/<%= livePopularPlaylistId %>">
+              人気順に読み込む
+            </a>
+        </div>
+    </div>
+
+    <%# ===== リリースタブ ===== %>
+    <div id="tab-releases" class="tab-content hidden mt-4">
+        <div id="releases-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </div>
+
+    <%# ===== 再生リストタブ ===== %>
+    <div id="tab-playlists" class="tab-content hidden mt-4">
+        <div id="playlists-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </div>
+
+    <div style="height:480px;" class="w-full max-w-3xl mx-auto mt-8">
+        <script src="//accaii.com/wktplus/widget.js" async></script>
+    </div>
+</div>
+
+<script>
+const CHANNEL_ID = '<%= channelId %>';
+const tabCache   = {};
+let activeTab = 'home';
+
+/* =====================================================
+   タブ切り替え（データ属性からカラークラスを動的に処理）
+   ===================================================== */
+const tabBtns    = document.querySelectorAll('[data-tab]');
+const tabContents = document.querySelectorAll('.tab-content');
+tabBtns.forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+
+function switchTab(tab) {
+    activeTab = tab;
+    tabBtns.forEach(b => {
+        const on = b.dataset.tab === tab;
+        const activeColor = b.dataset.color || 'border-blue-500';
+
+        if (on) {
+            b.classList.add('text-white', 'border-b-2', activeColor);
+            b.classList.remove('text-gray-400');
+        } else {
+            b.classList.remove('text-white', 'border-b-2', activeColor);
+            b.classList.add('text-gray-400');
+        }
+    });
+    tabContents.forEach(c => c.classList.toggle('hidden', c.id !== 'tab-' + tab));
+    if (tab !== 'home') loadTab(tab, null);
+}
+
+/* =====================================================
+   タブデータ AJAX 読み込み
+   ===================================================== */
+async function loadTab(tab, sort, forceReload) {
+    const key = tab + (sort ? ':' + sort : '');
+    const container = getContainer(tab);
+    if (!container) return;
+
+    if (!forceReload && tabCache[key]) {
+        renderItems(tab, tabCache[key]);
+        return;
+    }
+
+    const emptySpan = tab === 'shorts' ? 'col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-5' : 'col-span-3';
+    container.innerHTML = `<div class="${emptySpan} text-center py-12 text-gray-400">読み込み中...</div>`;
+
+    try {
+        const url = `/wkt/c/${encodeURIComponent(CHANNEL_ID)}/tab/${tab}${sort ? '?sort=' + sort : ''}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const items = data.items || [];
+        tabCache[key] = items;
+        renderItems(tab, items);
+    } catch (err) {
+        console.error('Tab load error:', tab, err);
+        container.innerHTML = `<div class="${emptySpan} text-center py-12 text-red-400">読み込みに失敗しました。<br>
+            <button onclick="loadTab('${tab}','${sort||''}',true)"
+                    class="mt-2 px-4 py-1 bg-gray-700 rounded hover:bg-gray-600 text-white text-sm">再試行</button></div>`;
+    }
+}
+
+function getContainer(tab) { return document.getElementById(tab + '-container'); }
+
+/* =====================================================
+   アイテム描画（サーバー正規化済みデータを前提）
+   ===================================================== */
+function renderItems(tab, items) {
+    const container = getContainer(tab);
+    if (!container) return;
+
+    const emptySpan = tab === 'shorts' ? 'col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-5' : 'col-span-3';
+    if (!items || items.length === 0) {
+        container.innerHTML = `<div class="${emptySpan} text-center py-12 text-gray-400">コンテンツがありません。</div>`;
+        return;
+    }
+
+    let html = '';
+    for (const item of items) {
+        if (!item || !item.id) continue;
+        if      (item.itemType === 'playlist') html += renderPlaylistCard(item);
+        else if (item.itemType === 'short')    html += renderShortCard(item);
+        else                                   html += renderVideoCard(item);
+    }
+    container.innerHTML = html || `<div class="${emptySpan} text-center py-12 text-gray-400">コンテンツがありません。</div>`;
+}
+
+/* =====================================================
+   ユーティリティ
+   ===================================================== */
+function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* =====================================================
+   動画カード（16:9）
+   ===================================================== */
+function renderVideoCard(v) {
+    const id       = esc(v.id       || '');
+    const title    = esc(v.title    || '');
+    const duration = esc(v.duration || '');
+    const meta     = [v.views, v.published].filter(Boolean).map(esc).join(' • ');
+
+    return `
+<div class="result-item bg-gray-800 p-4 rounded-lg shadow hover:bg-gray-700 transition duration-200">
+    <a href="/wkt/watch/${id}" class="block relative group wkt-watch-link" data-video-id="${id}">
+        <img loading="lazy" src="/wkt/back/vi/${id}/mqdefault.jpg" alt="${title}"
+             class="w-full h-auto rounded aspect-video object-cover">
+        ${duration ? `<span class="absolute bottom-1 right-1 bg-black bg-opacity-80 text-white text-xs px-1.5 py-0.5 rounded font-medium">${duration}</span>` : ''}
+        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition rounded"></div>
+    </a>
+    <div class="mt-3">
+        <a href="/wkt/watch/${id}" class="wkt-watch-link" data-video-id="${id}">
+            <p class="text-white font-bold text-sm leading-snug line-clamp-2 mb-1 hover:text-blue-400 transition">${title}</p>
+        </a>
+        ${meta ? `<p class="text-gray-500 text-xs">${meta}</p>` : ''}
+    </div>
+</div>`;
+}
+
+/* =====================================================
+   ショートカード（9:16）
+   ===================================================== */
+function renderShortCard(v) {
+    const id    = esc(v.id    || '');
+    const title = esc(v.title || '');
+    const views = esc(v.views || '');
+    return `
+<div class="result-item bg-gray-800 p-2 rounded-lg shadow hover:bg-gray-700 transition duration-200">
+    <a href="/wkt/watch/${id}" class="block relative group wkt-watch-link" data-video-id="${id}">
+        <img loading="lazy" src="/wkt/back/vi/${id}/mqdefault.jpg" alt="${title}"
+             class="w-full rounded object-cover" style="aspect-ratio:9/16">
+        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition rounded"></div>
+    </a>
+    <div class="mt-2 px-1">
+        <a href="/wkt/watch/${id}" class="wkt-watch-link" data-video-id="${id}">
+            <p class="text-white font-bold text-xs leading-snug line-clamp-2 mb-1 hover:text-blue-400 transition">${title}</p>
+        </a>
+        ${views ? `<p class="text-gray-500 text-xs">${views}</p>` : ''}
+    </div>
+</div>`;
+}
+
+/* =====================================================
+   再生リストカード
+   ===================================================== */
+function renderPlaylistCard(v) {
+    const id    = esc(v.id    || '');
+    const title = esc(v.title || '');
+    const count = esc(v.count || '');
+    const thumb = v.thumbnail ? esc(v.thumbnail) : '';
+    const thumbHtml = thumb
+        ? `<img loading="lazy" src="${thumb}" alt="${title}" class="w-full h-auto rounded aspect-video object-cover">`
+        : `<div class="w-full rounded aspect-video bg-gray-700 flex items-center justify-center text-gray-500 text-sm">サムネなし</div>`;
+    return `
+<div class="result-item bg-gray-800 p-4 rounded-lg shadow hover:bg-gray-700 transition duration-200">
+    <a href="/wkt/p/${id}" class="block relative group">
+        ${thumbHtml}
+        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition rounded"></div>
+    </a>
+    <div class="mt-3">
+        <a href="/wkt/p/${id}">
+            <p class="text-white font-bold text-sm leading-snug line-clamp-2 mb-1 hover:text-blue-400 transition">${title}</p>
+        </a>
+        <p class="text-gray-500 text-xs">再生リスト${count ? ' • ' + count + '本' : ''}</p>
+    </div>
+</div>`;
+}
+</script>
+</body>
+</html>

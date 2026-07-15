@@ -1,0 +1,35 @@
+{
+  "name": "wkt-plus",
+  "version": "0.1.0",
+  "main": "server.js",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.8.1",
+    "body-parser": "^1.20.2",
+    "compression": "^1.8.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "miniget": "^4.2.3",
+    "pg": "^8.22.0",
+    "serverless-http": "^3.2.0",
+    "soundcloud-downloader": "^1.0.0",
+    "undici": "latest",
+    "youtubei.js": "latest",
+    "ytpl": "latest",
+    "ytsr": "latest"
+  },
+  "description": "wakame",
+  "engines": {
+    "node": "24.x"
+  },
+  "author": "toka-kun",
+  "bugs": {
+    "email": ""
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

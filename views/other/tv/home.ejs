@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wkt</title>
+    <script src="/js/tailwindcss.js"></script>
+    <link rel="stylesheet" href="/css/page.css">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="/js/force-title.js"></script>
+    <script src="/js/navigate.js"></script>
+</head>
+<body class="bg-gray-900 font-sans min-h-screen flex flex-col m-0 p-0 overflow-hidden text-white">
+    
+    <button class="back-button fixed top-5 left-5 z-50 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out flex items-center space-x-2" onclick="window.location.href='/wkt'">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+        <span>戻る</span>
+    </button>
+
+    <div class="flex-grow w-full h-screen pt-20 pb-4 px-4 box-border flex flex-col lg:flex-row gap-4">
+        
+        <div class="w-full lg:w-[75%] aspect-video lg:aspect-auto lg:h-full bg-black rounded-2xl shadow-lg border-none flex items-center justify-center overflow-hidden flex-shrink-0" id="player-container">
+            <p class="text-gray-400 text-lg">リストからチャンネルを選択してください</p>
+        </div>
+
+        <div class="w-full lg:w-[25%] flex-grow lg:h-full bg-gray-800 rounded-2xl shadow-lg p-4 flex flex-col min-h-0">
+            <h2 class="text-xl font-bold mb-3 border-b border-gray-600 pb-2 flex-shrink-0">チャンネル一覧</h2>
+            
+            <div id="region-nav" class="flex flex-wrap gap-2 mb-4 flex-shrink-0">
+            </div>
+
+            <div id="channel-list" class="space-y-4 overflow-y-auto flex-grow px-1 custom-scrollbar relative">
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // サーバーから渡されたJSONデータを取得
+        const tvData = <%- tvData %>;
+        
+        // 翻訳マッピング
+        const regionsMap = {
+            "na": "北米",
+            "eu": "ヨーロッパ",
+            "latam": "中南米",
+            "asia": "アジア",
+            "me": "中東",
+            "africa": "アフリカ",
+            "oc": "オセアニア"
+        };
+
+        const genresMap = {
+            "full": "全ジャンル",
+            "tech": "テクノロジー・ビジネス",
+            "optional": "その他"
+        };
+
+        const regionNav = document.getElementById('region-nav');
+        const channelList = document.getElementById('channel-list');
+        const playerContainer = document.getElementById('player-container');
+        let currentHls = null; 
+
+        // データを地域(Region)ごとに整理
+        const groupedData = {};
+        for (const [key, item] of Object.entries(tvData)) {
+            const regionCode = key.split('/')[0];
+            if (!groupedData[regionCode]) {
+                groupedData[regionCode] = [];
+            }
+            groupedData[regionCode].push(item);
+        }
+
+        // --- 地域ボタンの強調を更新する共通関数 ---
+        function updateActiveRegionBtn(activeRegionCode) {
+            document.querySelectorAll('.region-btn').forEach(b => {
+                if (b.dataset.region === activeRegionCode) {
+                    b.classList.remove('bg-gray-600', 'hover:bg-gray-500');
+                    b.classList.add('bg-blue-600', 'ring-2', 'ring-blue-400');
+                } else {
+                    b.classList.remove('bg-blue-600', 'ring-2', 'ring-blue-400');
+                    b.classList.add('bg-gray-600', 'hover:bg-gray-500');
+                }
+            });
+        }
+
+        // 右側のリストとジャンプボタンを生成
+        for (const [regionCode, items] of Object.entries(groupedData)) {
+            const regionName = regionsMap[regionCode] || regionCode;
+            
+            // --- ジャンプボタンの作成 ---
+            const navBtn = document.createElement('button');
+            navBtn.className = "region-btn text-xs bg-gray-600 hover:bg-gray-500 text-white py-1.5 px-3 rounded-full transition-colors duration-200";
+            navBtn.textContent = regionName;
+            navBtn.dataset.region = regionCode; // 識別用のデータ属性を追加
+            
+            navBtn.onclick = (e) => {
+                // 強調表示の更新
+                updateActiveRegionBtn(regionCode);
+
+                // スクロール処理
+                const targetHeader = document.getElementById(`region-${regionCode}`);
+                if (targetHeader) {
+                    targetHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                e.currentTarget.blur(); 
+            };
+            regionNav.appendChild(navBtn);
+
+            // --- 地域ヘッダーの作成 ---
+            const regionHeader = document.createElement('h3');
+            regionHeader.id = `region-${regionCode}`; 
+            regionHeader.className = `text-lg font-semibold text-blue-400 mb-2 ${channelList.children.length === 0 ? '' : 'mt-6'}`;
+            regionHeader.textContent = regionName;
+            channelList.appendChild(regionHeader);
+
+            // --- チャンネルボタンの作成 ---
+            items.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = "channel-btn w-full text-left bg-gray-700 hover:bg-gray-600 p-3 rounded-lg transition duration-200 flex flex-col mb-2";
+                
+                const genreLabel = genresMap[item.genre] || item.genre;
+                
+                btn.innerHTML = `
+                    <span class="font-bold text-white text-md">${item.name}</span>
+                    <span class="text-xs text-gray-400 mt-1 px-2 py-1 bg-gray-900 rounded inline-block w-max">${genreLabel}</span>
+                `;
+
+                btn.onclick = (e) => {
+                    const currentBtn = e.currentTarget;
+
+                    document.querySelectorAll('.channel-btn').forEach(b => {
+                        b.classList.remove('bg-blue-600', 'hover:bg-blue-500', 'ring-2', 'ring-inset', 'ring-blue-400');
+                        b.classList.add('bg-gray-700', 'hover:bg-gray-600');
+                    });
+
+                    currentBtn.classList.remove('bg-gray-700', 'hover:bg-gray-600');
+                    currentBtn.classList.add('bg-blue-600', 'hover:bg-blue-500', 'ring-2', 'ring-inset', 'ring-blue-400');
+
+                    // チャンネルクリック時にも対象地域の地域ボタンを強調する
+                    updateActiveRegionBtn(regionCode);
+
+                    playMedia(item.hlsUrl, item.fallbackVideoId);
+                    currentBtn.blur(); 
+                };
+                channelList.appendChild(btn);
+            });
+        }
+
+        // 初期表示時：一番最初の地域ボタンを強調
+        const initialRegion = Object.keys(groupedData)[0];
+        if (initialRegion) {
+            updateActiveRegionBtn(initialRegion);
+        }
+
+        // --- スクロールスパイ（スクロール位置に応じた地域ボタンの更新） ---
+        channelList.addEventListener('scroll', () => {
+            const containerRect = channelList.getBoundingClientRect();
+            const headers = document.querySelectorAll('h3[id^="region-"]');
+            let activeRegionCode = null;
+
+            // リストの一番下までスクロールしきった場合の判定
+            const isAtBottom = channelList.scrollHeight - channelList.scrollTop - channelList.clientHeight <= 10;
+
+            if (isAtBottom && headers.length > 0) {
+                activeRegionCode = headers[headers.length - 1].id.replace('region-', '');
+            } else {
+                // 下から順にヘッダーをチェックし、コンテナの上部付近を越えているものを探す
+                for (let i = headers.length - 1; i >= 0; i--) {
+                    const headerRect = headers[i].getBoundingClientRect();
+                    // 80pxの余裕を持たせて、画面に十分入ったら切り替わるようにする
+                    if (headerRect.top <= containerRect.top + 80) {
+                        activeRegionCode = headers[i].id.replace('region-', '');
+                        break;
+                    }
+                }
+            }
+
+            // どれにも引っかからなかった場合（一番上にいる場合など）は最初の要素を選択
+            if (!activeRegionCode && headers.length > 0) {
+                activeRegionCode = headers[0].id.replace('region-', '');
+            }
+
+            if (activeRegionCode) {
+                updateActiveRegionBtn(activeRegionCode);
+            }
+        });
+
+        // 動画再生のロジック
+        async function playMedia(hlsUrl, fallbackVideoId) {
+            if (currentHls) {
+                currentHls.destroy();
+                currentHls = null;
+            }
+
+            if (hlsUrl && hlsUrl.trim() !== "") {
+                playerContainer.innerHTML = `<video id="hls-video" class="w-full h-full bg-black rounded-2xl outline-none" controls autoplay></video>`;
+                const video = document.getElementById('hls-video');
+                
+                if (Hls.isSupported()) {
+                    currentHls = new Hls();
+                    currentHls.loadSource(hlsUrl);
+                    currentHls.attachMedia(video);
+                    currentHls.on(Hls.Events.MANIFEST_PARSED, function() {
+                        video.play();
+                    });
+                }
+                else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = hlsUrl;
+                    video.addEventListener('loadedmetadata', function() {
+                        video.play();
+                    });
+                }
+            } else if (fallbackVideoId && fallbackVideoId.trim() !== "") {
+                let paramText = "";
+                
+                try {
+                    const response = await fetch('/wkt/yt/edurl');
+                    if (response.ok) {
+                        paramText = await response.text();
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch YouTube URL parameters:", error);
+                }
+
+                const embedUrl = `https://www.youtubeeducation.com/embed/${fallbackVideoId}${paramText.trim()}`;
+                
+                playerContainer.innerHTML = `
+                    <iframe 
+                        src="${embedUrl}" 
+                        class="w-full h-full rounded-2xl shadow-lg border-none bg-black"
+                        allow="fullscreen; autoplay"
+                        title="YouTube Education Video">
+                    </iframe>
+                `;
+            } else {
+                playerContainer.innerHTML = `<p class="text-gray-400 text-lg">再生可能なメディアがありません。</p>`;
+            }
+        }
+
+        // --- キーボードショートカット ---
+        document.addEventListener('keydown', (e) => {
+            const video = document.getElementById('hls-video');
+            
+            if (!video) return;
+
+            if (e.key === 'ArrowRight') {
+                video.currentTime += 10;
+            } else if (e.key === 'ArrowLeft') {
+                video.currentTime -= 10;
+            } 
+            else if (e.key === 'f' || e.key === 'F') {
+                if (!document.fullscreenElement) {
+                    video.requestFullscreen().catch(err => {
+                        console.error(`フルスクリーン表示に失敗しました: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+            else if (e.key === ' ' || e.key === 'Spacebar') {
+                e.preventDefault(); 
+                if (video.paused) {
+                    video.play();
+                } else {
+                    video.pause();
+                }
+            }
+        });
+    </script>
+
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(31, 41, 55, 1); 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: rgba(75, 85, 99, 1); 
+            border-radius: 10px;
+        }
+    </style>
+</body>
+</html>

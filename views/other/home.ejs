@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wkt</title>
+    <script src="/js/tailwindcss.js"></script>
+    <link rel="stylesheet" href="/css/page.css">
+    <style>
+        .hero-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 50vh;
+            background-color: #2d3748;
+        }
+        .searchbox {
+            position: absolute;
+            transform: translate(-50%, 0%);
+            width: 80%;
+            max-width: 700px;
+            padding: 0.75rem;
+            font-size: 1.2rem;
+            border-radius: 25px;
+            border: none;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .searchbox:focus {
+            background-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+        }
+        .app-card-container {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        .app-card {
+            background-color: #1a202c;
+            border-radius: 25px;
+            padding: 15px;
+            width: 180px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 2px solid #4a5568;
+        }
+        .app-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 4px 10px rgba(255, 255, 255, 0.1);
+        }
+        .app-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        .app-card h3 {
+            color: white;
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+        .app-card p {
+            color: #cbd5e0;
+            font-size: 0.875rem;
+        }
+        footer {
+            background-color: #2d3748;
+            color: #cbd5e0;
+            padding: 1rem;
+            text-align: center;
+        }
+    </style>
+    <script src="/js/force-title.js"></script>
+    <script src="/js/navigate.js"></script>
+</head>
+<body class="bg-gray-900 font-sans min-h-screen flex flex-col">
+    <button class="back-button fixed top-5 left-5 z-50 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out flex items-center space-x-2" onclick="window.location.href='/wkt'">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+        </svg>
+        <span>戻る</span>
+    </button>
+
+    <div class="section flex-grow text-center pt-24 pb-10">
+      
+        <div class="mt-6 mb-10 px-4">
+          <input type="text" id="search" placeholder="YouTubeサイトを検索..." class="w-full max-w-md p-2 border rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-black">
+        </div>
+  
+        <section class="py-10 px-4 bg-gray-800 rounded-t-3xl mx-2 shadow-lg h-full">
+
+            <div class="mb-12">
+                <h2 class="text-white text-2xl font-bold mb-6 border-l-4 border-blue-500 pl-4 text-left">直接搭載しているYouTubeサイト集</h2>
+                <div class="app-card-container">
+                    <div class="app-card">
+                        <a href="/other/sia" target="_blank" rel="noopener noreferrer">
+                            <img src="https://uploads.scratch.mit.edu/projects/thumbnails/1218808422.png">
+                        </a>
+                        <h3 class="app-title">しあtube</h3>
+                        <p class="app-description">バージョン1.5.4 (2026/03/18時点)<br><br>siawaseokさんが開発しているYouTubeサイト</p>
+                    </div>
+                    <div class="app-card">
+                        <a href="/other/xerox#/" target="_blank" rel="noopener noreferrer">
+                            <img src="https://wsrv.nl/?url=https://youtube-pro.com.in/wp-content/uploads/2025/11/youtubepro.png&output=png">
+                        </a>
+                        <h3 class="app-title">XeroxYT-NT</h3>
+                        <p class="app-description">v5 (2026/03/07時点)<br><br>soranousさんが開発しているYouTubeサイト<br>EducationのパラメーターをToka_Kun_のものに変えています。</p>
+                    </div>
+                    <div class="app-card">
+                        <a href="/other/wista" target="_blank" rel="noopener noreferrer">
+                            <img src="https://uploads.scratch.mit.edu/projects/thumbnails/1276740034.png">
+                        </a>
+                        <h3 class="app-title">Wista</h3>
+                        <p class="app-description">woolisbestさんが開発しているYouTubeサイト</p>
+                    </div>
+                    <div class="app-card">
+                        <a href="/other/uow#/" target="_blank" rel="noopener noreferrer">
+                            <img src="https://placehold.jp/200x150.png">
+                        </a>
+                        <h3 class="app-title">うおtube</h3>
+                        <p class="app-description">仙人さんが開発しているYouTubeサイト</p>
+                    </div>
+                    <div class="app-card">
+                        <a href="/other/nkys#/home" target="_blank" rel="noopener noreferrer">
+                            <img src="https://uploads.scratch.mit.edu/projects/thumbnails/1329094644.png">
+                        </a>
+                        <h3 class="app-title">仲良しtube+</h3>
+                        <p class="app-description">2A_exeさんが開発しているYouTubeサイト</p>
+                    </div>
+                    <div class="app-card">
+                        <a href="/other/labo5#/" target="_blank" rel="noopener noreferrer">
+                            <img src="https://uploads.scratch.mit.edu/projects/thumbnails/1224846250.png">
+                        </a>
+                        <h3 class="app-title">Re: LABO5</h3>
+                        <p class="app-description">minoさんが開発したYouTubeサイトであるLABO5をToka_Kun_が改善したやつです。</p>
+                    </div>
+                    <div class="app-card">
+                        <a href="/other/player" target="_blank" rel="noopener noreferrer">
+                            <img src="https://uploads.scratch.mit.edu/projects/thumbnails/1264052367.png">
+                        </a>
+                        <h3 class="app-title">YouTube 埋め込み再生ツール</h3>
+                        <p class="app-description">Toka_Kun_が開発したYouTubeを埋め込みで視聴することだけを限界まで極めたツールです。実は再生リストなどにも対応しています。</p>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="border-gray-700 my-10">
+
+            <div>
+                <h2 class="text-white text-2xl font-bold mb-6 border-l-4 border-blue-500 pl-4 text-left">YouTubeサイトのリンク集</h2>
+                <div class="app-card-container">
+                    <div class="app-card">
+                        <a href="/other/min">
+                            <img src="https://uploads.scratch.mit.edu/projects/thumbnails/1297245033.png">
+                        </a>
+                        <h3 class="app-title">MIN-Tube-Pro</h3>
+                        <p class="app-description">minoさんが開発しているYouTubeサイト</p>
+                    </div>
+                    <div class="app-card">
+                        <a href="/other/yuto">
+                            <img src="https://uploads.scratch.mit.edu/projects/thumbnails/1295714014.png">
+                        </a>
+                        <h3 class="app-title">YouTube Plus+</h3>
+                        <p class="app-description">yuto_110さんが開発しているYouTubeサイト</p>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </div>
+
+    <footer class="mt-auto">
+        <p>♪( ´▽｀)</p>
+    </footer>
+  
+    <script>
+        const searchInput = document.getElementById('search');
+        const tools = document.querySelectorAll('.app-card');
+        searchInput.addEventListener('input', function() {
+            const searchText = searchInput.value.toLowerCase();
+
+            tools.forEach(tool => {
+                const title = tool.querySelector('.app-title').textContent.toLowerCase();
+                const description = tool.querySelector('.app-description').textContent.toLowerCase();
+                if (title.includes(searchText) || description.includes(searchText)) {
+                    tool.style.display = '';
+                } else {
+                    tool.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
